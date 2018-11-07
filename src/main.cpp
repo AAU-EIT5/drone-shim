@@ -1,5 +1,4 @@
 #include <main.h>
-// Hello world!
 
 void setup() 
 {
