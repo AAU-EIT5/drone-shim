@@ -64,17 +64,20 @@ void loop()
   ibus.handle();
   handle_sensors();
 
+  // Pass recieved channels transparrently
   for(int i=0; i<14; i++)
   {
     ibus.set_channel(i, ibus.get_channel(i));
   }
 
+  // If SWD is thrown, save the current throttle value
   if(ibus.get_channel(5) > 1300 && !eeprom_written)
   {
     eeprom_written = true;
     EEPROM.write(eeprom_addr_percent, map(ibus.get_channel(2), 1000, 2000, 0, 100));
   }
 
+  // If RF is lost, turn on LED
   if(ibus.is_alive())
   {
     digitalWrite(LED_BUILTIN, LOW);

@@ -11,7 +11,7 @@ VL53L0X sensor1;
 const uint8_t eeprom_addr_percent = 10;
 bool eeprom_written = false;
 
-const unsigned int sensor_xshut[] = {7, 8};
+const unsigned int sensor_xshut[] = {14, 16};
 iBus ibus(Serial2);
 
 int distances[2];
