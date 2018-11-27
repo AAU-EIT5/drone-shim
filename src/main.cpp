@@ -58,6 +58,49 @@ void handle_sensors()
   if (sensor1.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
 }
 
+void aux_handle()
+{
+  // 
+  // // If SWD is thrown, save the current throttle value
+  // if(ibus.get_channel(5) > 1300 && !eeprom_written)
+  // {
+    // eeprom_written = true;
+    // EEPROM.write(eeprom_addr_percent, map(ibus.get_channel(2), 1000, 2000, 0, 100));
+  // }
+
+  /* If SWD is thrown:
+   * step throttle to 30% for 1 second,
+   * then to 50% for 1 second, 
+   * then to 30% for 1 second, 
+   * then pass through stick value
+   * wait for SWD to be released
+  */
+  uint32_t start = millis();
+  while(ibus.get_channel(5) > 1550)
+  {
+    ibus.handle();
+    // Pass through all channels
+    for(int i=0; i<14; i++)
+    {
+      ibus.set_channel(i, ibus.get_channel(i));
+    }
+  
+    // Modify throttle
+    if(millis() - start < 1000)
+    {
+      ibus.set_channel(2, 1300); // 30%
+    }
+    else if(millis() - start < 2000)
+    {
+      ibus.set_channel(2, 1500); // 50%
+    } 
+    else if(millis() - start < 3000)
+    {
+      ibus.set_channel(2, 1300); // 30%
+    }
+  }
+}
+
 unsigned long last_send = 0;
 void loop()
 {
@@ -70,12 +113,8 @@ void loop()
     ibus.set_channel(i, ibus.get_channel(i));
   }
 
-  // If SWD is thrown, save the current throttle value
-  if(ibus.get_channel(5) > 1300 && !eeprom_written)
-  {
-    eeprom_written = true;
-    EEPROM.write(eeprom_addr_percent, map(ibus.get_channel(2), 1000, 2000, 0, 100));
-  }
+  // Do stuff based on aux channel
+  aux_handle();
 
   // If RF is lost, turn on LED
   if(ibus.is_alive())

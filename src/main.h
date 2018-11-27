@@ -12,6 +12,7 @@ const uint8_t eeprom_addr_percent = 10;
 bool eeprom_written = false;
 
 const unsigned int sensor_xshut[] = {14, 16};
+const unsigned int sensor_int[] = {15, 17};
 iBus ibus(Serial2);
 
 int distances[2];
