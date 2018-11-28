@@ -75,6 +75,9 @@ void aux_handle()
    * then pass through stick value
    * wait for SWD to be released
   */
+
+  const int baseline1 = 10000, step1 = 1000, baseline2 = 10000;
+
   uint32_t start = millis();
   while(ibus.get_channel(5) > 1550)
   {
@@ -86,17 +89,17 @@ void aux_handle()
     }
   
     // Modify throttle
-    if(millis() - start < 1000)
+    if(millis() - start < baseline1)
     {
-      ibus.set_channel(2, 1300); // 30%
+      ibus.set_channel(2, 1330); // 33%
     }
-    else if(millis() - start < 2000)
+    else if(millis() - start < (baseline1 + step1))
     {
-      ibus.set_channel(2, 1500); // 50%
+      ibus.set_channel(2, 1370); // 37%
     } 
-    else if(millis() - start < 3000)
+    else if(millis() - start < (baseline1 + step1 + baseline2))
     {
-      ibus.set_channel(2, 1300); // 30%
+      ibus.set_channel(2, 1330); // 33%
     }
   }
 }
