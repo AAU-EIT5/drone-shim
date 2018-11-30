@@ -82,7 +82,7 @@ void aux_handle()
   while(ibus.get_channel(5) > 1550)
   {
     ibus.handle();
-    // Pass through all channels
+    // Pass through all channels, because we're stuck in this while
     for(int i=0; i<14; i++)
     {
       ibus.set_channel(i, ibus.get_channel(i));
