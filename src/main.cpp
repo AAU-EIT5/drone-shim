@@ -58,8 +58,17 @@ void handle_sensors()
   if (sensor1.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
 }
 
+bool has_run = false;
 void aux_handle()
 {
+  if(ibus.get_channel(5) < 1450)
+  {
+    has_run = false;
+  }
+  if(has_run)
+  {
+    return;
+  }
   // 
   // // If SWD is thrown, save the current throttle value
   // if(ibus.get_channel(5) > 1300 && !eeprom_written)
@@ -79,8 +88,9 @@ void aux_handle()
   const int baseline1 = 10000, step1 = 1000, baseline2 = 10000;
 
   uint32_t start = millis();
-  while(ibus.get_channel(5) > 1550)
+  while(ibus.get_channel(5) > 1550 && (millis() - start) < (baseline1 + baseline2 + step1))
   {
+    has_run = true;
     ibus.handle();
     // Pass through all channels, because we're stuck in this while
     for(int i=0; i<14; i++)
@@ -91,15 +101,19 @@ void aux_handle()
     // Modify throttle
     if(millis() - start < baseline1)
     {
-      ibus.set_channel(2, 1330); // 33%
+      ibus.set_channel(2, 1300); // 30%
     }
     else if(millis() - start < (baseline1 + step1))
     {
-      ibus.set_channel(2, 1370); // 37%
+      ibus.set_channel(2, 1350); // 35%
     } 
     else if(millis() - start < (baseline1 + step1 + baseline2))
     {
-      ibus.set_channel(2, 1330); // 33%
+      ibus.set_channel(2, 1300); // 30%
+    }
+    else
+    {
+      break;
     }
   }
 }
