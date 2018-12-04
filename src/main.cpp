@@ -1,5 +1,4 @@
 #include <main.h>
-#include <EEPROM.h>
 
 void setup() 
 {
@@ -7,11 +6,51 @@ void setup()
   while(!Serial && millis() < 5000)
   {;}
 
-  Serial.println(EEPROM.read(eeprom_addr_percent));
-
   init_sensors();
 
   pinMode(LED_BUILTIN, OUTPUT);
+}
+
+void loop()
+{
+  ibus.handle();
+  handle_sensors();
+  ibus_wrap(); // Little function to do the repeated iBUS things
+
+  distance_set_point = map(ibus.get_channel(5), 1000, 2000, 0, 500);
+  
+  if(distance_set_point > 200)
+  {
+    ibus.set_channel(2, regulator());
+  } 
+  
+  // Print sensor readings
+  debug_print(500);
+}
+
+int regulator()
+{
+  int Err = distance_set_point - distances[0];
+  return kp * Err;
+}
+
+void ibus_wrap()
+{
+  // Pass recieved channels transparrently
+  for(int i=0; i<14; i++)
+  {
+    ibus.set_channel(i, ibus.get_channel(i));
+  }
+
+  // If RF is lost, turn on LED
+  if(ibus.is_alive())
+  {
+    digitalWrite(LED_BUILTIN, LOW);
+  }
+  else
+  {
+    digitalWrite(LED_BUILTIN, HIGH);
+  }
 }
 
 void init_sensors()
@@ -40,8 +79,8 @@ void init_sensors()
   sensor1.setAddress(0xB0);
   sensor1.init();
 
-  sensor0.setMeasurementTimingBudget(25000);
-  sensor1.setMeasurementTimingBudget(25000);
+  sensor0.setMeasurementTimingBudget(timing_budget);
+  sensor1.setMeasurementTimingBudget(timing_budget);
 
 
   Serial.println("Starting continous ranging");
@@ -59,33 +98,17 @@ void handle_sensors()
 }
 
 unsigned long last_send = 0;
-void loop()
+void debug_print(int send_period)
 {
-  ibus.handle();
-  handle_sensors();
-
-  // Pass recieved channels transparrently
-  for(int i=0; i<14; i++)
-  {
-    ibus.set_channel(i, ibus.get_channel(i));
-  }
-
-  // If RF is lost, turn on LED
-  if(ibus.is_alive())
-  {
-    digitalWrite(LED_BUILTIN, LOW);
-  }
-  else
-  {
-    digitalWrite(LED_BUILTIN, HIGH);
-  }
-  
-  // Print sensor readings
-  #if SERIAL_DBG
-  if(millis() - last_send > 1000)
+  #if SERIAL_DBG > 0
+  if(millis() - last_send > send_period)
   {
     last_send = millis();
-    Serial.print(": "); Serial.print(distances[0]); Serial.print(" | "); Serial.println(distances[1]);
+    Serial.print(distances[0]); Serial.print(" | "); Serial.println(distances[1]);
+
+    #if SERIAL_DBG > 1
+    //code
+    #endif
   }
   #endif
 }
