@@ -2,13 +2,33 @@
 
 void setup() 
 {
+  ibus.set_alive_timeout(30);
+
   Serial.begin(115200);
   while(!Serial && millis() < 5000)
   {;}
+  delay(5);
+
+  while(!Q.isFull())
+  {
+    uint16_t x = 0;
+    Q.push(&x);
+  }
+
+  Serial.println("Dumping EEPROM");
+  eeprom_print();
+
+  ibus_ticker.begin(ibus_ticker_isr, ibus_ticker_period);
+  ibus_ticker.priority(100);
+
+  throttle_sample_ticker.begin(throttle_sample, throttle_sample_period);
+  throttle_sample_ticker.priority(200);
 
   init_sensors();
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  
 
   //attachInterrupt(sensor_int[0], sensor0_data_ready, FALLING);
   //attachInterrupt(sensor_int[1], sensor1_data_ready, FALLING);
@@ -17,25 +37,83 @@ void setup()
 
 void loop()
 {
-
-  ibus.handle();
   handle_sensors();
   ibus_wrap(); // Little function to do the repeated iBUS things
-
-  distance_set_point = map(ibus.get_channel(5), 1000, 2000, 0, 500);
   
-  if(distance_set_point > 200)
-  {
-    ibus.set_channel(2, 1000 + regulator(0, 350));
-  } 
+  aux_handle();
   
   // Print sensor readings
   debug_print(500);
 }
 
-int regulator(int min, int max)
+bool eeprom_unflushed = false;
+void aux_handle()
 {
-  int Err = distance_set_point - distances[0][1];
+  int aux = ibus.get_channel(5);
+  int throttle = 0;
+  int step = 100; // Step in mm
+
+  const uint8_t reg_min = 0, reg_max = 10;
+
+  if(aux >= 1400 && aux < 1700) // If switch is in the middle pos
+  {
+    eeprom_unflushed = true;
+    if(grav_offset == 0) 
+    {
+      grav_offset = ibus.get_tx_channel(2); // Set the gravity offset
+      distance_set_point_base = distances[0][1]; // Set the base setpoint
+      Serial.print("G: "); Serial.println(grav_offset);
+    }
+
+    throttle = regulator(distance_set_point_base, reg_min, reg_max) + grav_offset;
+
+  }
+  else if(aux >= 1700)
+  {
+    eeprom_unflushed = true;
+    throttle = regulator(distance_set_point_base + step, reg_min, reg_max) + grav_offset;
+  }
+  else
+  {
+    throttle = ibus.get_channel(2);
+    grav_offset = 0;
+
+    if(eeprom_unflushed)
+    {
+      eeprom_unflushed = false;
+      flush_to_eeprom();
+    }
+
+  }
+
+  ibus.set_channel(2, throttle);
+}
+
+void flush_to_eeprom()
+{
+  for(int i=0; i<1000; i++)
+  {
+    uint16_t x;
+    Q.pop(&x);
+    Serial.print(i); Serial.print(": "); Serial.println(x);
+    EEPROM.write(eeprom_addr_offset + i*2, (x>>8));
+    EEPROM.write(eeprom_addr_offset + i*2 + 1, (x & 0x00FF));
+  }
+}
+
+void eeprom_print()
+{
+  for(int i=0; i<1000; i++)
+  {
+    uint16_t x = (EEPROM.read(eeprom_addr_offset + i*2) << 8) | EEPROM.read(eeprom_addr_offset + i*2 +1);
+    Serial.print(x);Serial.print(',');
+  }
+  Serial.println('\n');
+}
+
+int regulator(int sp, int min, int max)
+{
+  int Err = sp - distances[0][1];
   
   int out = Kp * Err;
 
@@ -86,26 +164,24 @@ void init_sensors()
   pinMode(sensor_xshut[0], INPUT); 
   delay(150);
   sensor0.setTimeout(500);
-  sensor0.setAddress(0x10);
+  sensor0.setAddress(0x40);
   sensor0.init();
 
-  Serial.println("Enable sensor 1");
-  pinMode(sensor_xshut[1], INPUT); // Enable the second sensor
-  delay(150);
-  sensor1.setTimeout(500);
-  sensor1.setAddress(0x20);
-  sensor1.init();
-
-  Serial.print(sensor0.getAddress(), HEX); Serial.print(" : "); Serial.println(sensor1.getAddress(), HEX);
+  //Serial.println("Enable sensor 1");
+  //pinMode(sensor_xshut[1], INPUT); // Enable the second sensor
+  //delay(150);
+  //sensor1.setTimeout(500);
+  //sensor1.setAddress(0x50);
+  //sensor1.init();
 
   sensor0.setMeasurementTimingBudget(timing_budget);
-  sensor1.setMeasurementTimingBudget(timing_budget);
+  ////sensor1.setMeasurementTimingBudget(timing_budget);
 
 
   Serial.println("Starting continous ranging");
   sensor0.startContinuous();
   delay(5); // Start the second sensor slightly delayed, to limit data_ready interrupt colisions
-  sensor1.startContinuous();
+  //sensor1.startContinuous();
 }
 
 void handle_sensors()
@@ -123,9 +199,9 @@ void handle_sensors()
   //{
     //Serial.println("beep1");
     //sensor_data_ready[1] = false;
-    distances[1][0] = distances[1][1];
-    distances[1][1] = sensor1.readRangeContinuousMillimeters();
-    if (sensor1.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    //distances[1][0] = distances[1][1];
+    //distances[1][1] = sensor1.readRangeContinuousMillimeters();
+    //if (sensor1.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
   //}
 }
 
@@ -145,16 +221,14 @@ void debug_print(unsigned int send_period)
   #endif
 }
 
-void sensor0_data_ready()
+void throttle_sample()
 {
-  sensor_data_ready[0] = true;
-  sensor_sample_times[0][0] = sensor_sample_times[0][1];
-  sensor_sample_times[0][1] = micros();
+  uint16_t throttle = ibus.get_tx_channel(2);
+  Q.push(&throttle);
+  //Serial.println(throttle);
 }
 
-void sensor1_data_ready()
+void ibus_ticker_isr()
 {
-  sensor_data_ready[1] = true;
-  sensor_sample_times[1][0] = sensor_sample_times[1][1];
-  sensor_sample_times[1][1] = micros();
+  ibus.handle();
 }
