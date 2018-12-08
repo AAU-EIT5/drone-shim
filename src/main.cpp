@@ -91,6 +91,7 @@ void aux_handle()
 
 void flush_to_eeprom()
 {
+  noInterrupts();
   for(int i=0; i<1000; i++)
   {
     uint16_t x;
@@ -99,6 +100,7 @@ void flush_to_eeprom()
     EEPROM.write(eeprom_addr_offset + i*2, (x>>8));
     EEPROM.write(eeprom_addr_offset + i*2 + 1, (x & 0x00FF));
   }
+  interrupts();
 }
 
 void eeprom_print()
@@ -134,6 +136,10 @@ void ibus_wrap()
   // Pass recieved channels transparrently
   for(int i=0; i<14; i++)
   {
+    if(i == 2) // Skip throttle
+    {
+      continue;
+    }
     ibus.set_channel(i, ibus.get_channel(i));
   }
 
@@ -230,5 +236,5 @@ void throttle_sample()
 
 void ibus_ticker_isr()
 {
-  ibus.handle();
+  ibus.handle(2);
 }
