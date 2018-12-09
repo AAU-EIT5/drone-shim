@@ -138,9 +138,16 @@ void ibus_wrap()
   {
     if(i == 2) // Skip throttle
     {
-      continue;
+      if(ibus.get_channel(5) <= 1400)
+      {
+        // Scale throttle to 50% max
+        ibus.set_channel(i, map(ibus.get_channel(i), 1000, 2000, 1000, 1500));
+      }
     }
-    ibus.set_channel(i, ibus.get_channel(i));
+    else
+    {
+      ibus.set_channel(i, ibus.get_channel(i));
+    }
   }
 
   // If RF is lost, turn on LED
