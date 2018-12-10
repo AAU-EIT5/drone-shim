@@ -32,7 +32,7 @@ void eeprom_print();
 
 // Coms
 IntervalTimer ibus_ticker;
-const int ibus_ticker_period = 10000; // 10 ms between handling ibus
+const int ibus_ticker_period = 5000; // 5 ms between handling ibus
 iBus ibus(Serial2);
 void ibus_wrap();
 void ibus_ticker_isr();
