@@ -94,12 +94,27 @@ void flush_to_eeprom()
   noInterrupts();
   for(int i=0; i<1000; i++)
   {
+    if(!(i%10))
+    {
+      ibus_ticker_isr();
+    }
     uint16_t x;
     Q.pop(&x);
     Serial.print(i); Serial.print(": "); Serial.println(x);
     EEPROM.write(eeprom_addr_offset + i*2, (x>>8));
     EEPROM.write(eeprom_addr_offset + i*2 + 1, (x & 0x00FF));
   }
+
+  //uint8_t jitter[2], sample_time[2];
+  
+  //jitter[0] = max_jitter >> 8; jitter[1] = max_jitter & 0x00FF;
+  //sample_time[0] = average_sample_rate >> 8; sample_time[1] = average_sample_rate & 0x00FF;
+
+  //EEPROM.write(6, jitter[0]);
+  //EEPROM.write(7, jitter[1]);
+  //EEPROM.write(8, sample_time[0]);
+  //EEPROM.write(9, sample_time[1]);
+
   interrupts();
 }
 
@@ -111,6 +126,10 @@ void eeprom_print()
     Serial.print(x);Serial.print(',');
   }
   Serial.println('\n');
+  //int jitter = (EEPROM.read(6) << 8) | EEPROM.read(7);
+  //int sample_time = (EEPROM.read(8) << 8) | EEPROM.read(9);
+  //Serial.print("Jitter: "); Serial.println(jitter);
+  //Serial.print("Sample: "); Serial.println(sample_time);
 }
 
 int regulator(int sp, int min, int max)
@@ -176,14 +195,14 @@ void init_sensors()
   Serial.println("Enable sensor 0");
   pinMode(sensor_xshut[0], INPUT); 
   delay(150);
-  sensor0.setTimeout(500);
+  sensor0.setTimeout(100);
   sensor0.setAddress(0x40);
   sensor0.init();
 
   //Serial.println("Enable sensor 1");
   //pinMode(sensor_xshut[1], INPUT); // Enable the second sensor
   //delay(150);
-  //sensor1.setTimeout(500);
+  //sensor1.setTimeout(100);
   //sensor1.setAddress(0x50);
   //sensor1.init();
 
@@ -206,6 +225,18 @@ void handle_sensors()
     distances[0][0] = distances[0][1];
     distances[0][1] = sensor0.readRangeContinuousMillimeters();
     if (sensor0.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    
+    //samples++;
+    //int x = millis() - last_sample;
+    //last_sample = millis();
+//
+    //average_sample_rate = average_sample_rate * (samples-1)/samples  +  x/samples;
+    //
+    //if(x > max_jitter)
+    //{
+    //  max_jitter = x;
+    //}
+  
   //}
   
   //if(sensor_data_ready[1])

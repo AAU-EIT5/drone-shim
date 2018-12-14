@@ -18,7 +18,7 @@ void init_sensors();
 void handle_sensors();
 
 // Tuning constants
-const float Kp = 0.012;
+const float Kp = 0.05;
 const float Ki = 0;
 const float Kd = 0;
 
@@ -44,6 +44,11 @@ int distance_set_point_base = 0;
 int grav_offset = 0;
 int regulator(int sp, int min, int max);
 void aux_handle();
+
+uint32_t last_sample = 0;
+int max_jitter = 0;
+int samples = 0;
+int average_sample_rate = 0;
 
 
 void debug_print(unsigned int send_period = 500);
