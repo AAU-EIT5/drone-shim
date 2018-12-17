@@ -7,23 +7,22 @@ void setup()
   while(!Serial && millis() < 5000)
   {;}
 
-  Serial.println(EEPROM.read(eeprom_addr_percent));
+  int base = (EEPROM.read(0) << 8) | EEPROM.read(1);
+  int step = (EEPROM.read(2) << 8) | EEPROM.read(3);
+  
+  Serial.print("Base: "); Serial.println(base);
+  Serial.print("Step: "); Serial.println(step);
 
   init_sensors();
 
   pinMode(LED_BUILTIN, OUTPUT);
 }
 
+int base = 0, step = 0;
+
 void init_sensors()
 {
   Wire.begin();
-
-  // Turn off all sensors
-  for(int i=0; i<sizeof(sensor_xshut)/sizeof(sensor_xshut[0]); i++)
-  {
-    pinMode(sensor_xshut[i], OUTPUT);
-    digitalWrite(sensor_xshut[i], LOW);
-  }
 
   // Enable the first sensor
   Serial.println("Enable sensor 0");
@@ -33,29 +32,16 @@ void init_sensors()
   sensor0.setAddress(0xA0);
   sensor0.init();
 
-  Serial.println("Enable sensor 1");
-  pinMode(sensor_xshut[1], INPUT); // Enable the second sensor
-  delay(150);
-  sensor1.setTimeout(500);
-  sensor1.setAddress(0xB0);
-  sensor1.init();
-
   sensor0.setMeasurementTimingBudget(25000);
-  sensor1.setMeasurementTimingBudget(25000);
-
 
   Serial.println("Starting continous ranging");
   sensor0.startContinuous();
-  sensor1.startContinuous();
 }
 
 void handle_sensors()
 {
   distances[0] = sensor0.readRangeContinuousMillimeters();
   if (sensor0.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
-
-  distances[1] = sensor1.readRangeContinuousMillimeters();
-  if (sensor1.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
 }
 
 bool has_run = false;
@@ -69,52 +55,28 @@ void aux_handle()
   {
     return;
   }
-  // 
-  // // If SWD is thrown, save the current throttle value
-  // if(ibus.get_channel(5) > 1300 && !eeprom_written)
-  // {
-    // eeprom_written = true;
-    // EEPROM.write(eeprom_addr_percent, map(ibus.get_channel(2), 1000, 2000, 0, 100));
-  // }
-
-  /* If SWD is thrown:
-   * step throttle to 30% for 1 second,
-   * then to 50% for 1 second, 
-   * then to 30% for 1 second, 
-   * then pass through stick value
-   * wait for SWD to be released
-  */
-
-  const int baseline1 = 10000, step1 = 1000, baseline2 = 10000;
-
-  uint32_t start = millis();
-  while(ibus.get_channel(5) > 1550 && (millis() - start) < (baseline1 + baseline2 + step1))
+ 
+ 
+  if(ibus.get_channel(5) > 1550)
   {
-    has_run = true;
-    ibus.handle();
-    // Pass through all channels, because we're stuck in this while
-    for(int i=0; i<14; i++)
+    base = ibus.get_channel(2);
+    step = base + 10;  
+    uint32_t start = millis();
+    while(ibus.get_channel(5) > 1550 && (millis() - start) < 1000)
     {
-      ibus.set_channel(i, ibus.get_channel(i));
+      has_run = true;
+      ibus.handle();
+      // Pass through all channels, because we're stuck in this while
+      for(int i=0; i<14; i++)
+      {
+        ibus.set_channel(i, ibus.get_channel(i));
+      }
+
+      // Modify throttle
+      ibus.set_channel(2, step);
     }
-  
-    // Modify throttle
-    if(millis() - start < baseline1)
-    {
-      ibus.set_channel(2, 1300); // 30%
-    }
-    else if(millis() - start < (baseline1 + step1))
-    {
-      ibus.set_channel(2, 1350); // 35%
-    } 
-    else if(millis() - start < (baseline1 + step1 + baseline2))
-    {
-      ibus.set_channel(2, 1300); // 30%
-    }
-    else
-    {
-      break;
-    }
+    EEPROM.write(0, (base >> 8)); EEPROM.write(1, (base & 0x00FF));
+    EEPROM.write(2, (step >> 8)); EEPROM.write(3, (step & 0x00FF));
   }
 }
 
