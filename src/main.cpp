@@ -1,5 +1,7 @@
 #include <main.h>
 
+#define DEBUG_PIN 12
+
 void setup() 
 {
   ibus.set_alive_timeout(30);
@@ -28,6 +30,9 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
+  #if DEBUG_PIN
+    pinMode(DEBUG_PIN, OUTPUT);
+  #endif
   
 
   //attachInterrupt(sensor_int[0], sensor0_data_ready, FALLING);
@@ -53,7 +58,7 @@ void aux_handle()
   int throttle = 0;
   int step = 100; // Step in mm
 
-  const uint8_t reg_min = 0, reg_max = 10;
+  const int reg_min = -50, reg_max = 50;
 
   if(aux >= 1400 && aux < 1700) // If switch is in the middle pos
   {
@@ -216,6 +221,14 @@ void init_sensors()
   //sensor1.startContinuous();
 }
 
+void pulse()
+{
+  #if DEBUG_PIN
+    digitalWrite(DEBUG_PIN, !digitalRead(DEBUG_PIN));
+
+  #endif
+}
+
 void handle_sensors()
 {
   //if(sensor_data_ready[0])
@@ -224,7 +237,8 @@ void handle_sensors()
     //sensor_data_ready[0] = false;
     distances[0][0] = distances[0][1];
     distances[0][1] = sensor0.readRangeContinuousMillimeters();
-    if (sensor0.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+    if (sensor0.timeoutOccurred()) { Serial.print(" TIMEOUT"); } else {pulse();}
+
     
     //samples++;
     //int x = millis() - last_sample;
