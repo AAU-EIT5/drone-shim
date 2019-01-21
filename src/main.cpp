@@ -28,8 +28,6 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  
-
   //attachInterrupt(sensor_int[0], sensor0_data_ready, FALLING);
   //attachInterrupt(sensor_int[1], sensor1_data_ready, FALLING);
 
@@ -116,8 +114,11 @@ void eeprom_print()
 int regulator(int sp, int min, int max)
 {
   int Err = sp - distances[0][1];
+  int last_Err = sp - distances[0][0];
   
-  int out = Kp * Err;
+  int p_part = Kp * Err;
+  int d_part = Kd * (Err - last_Err) / (millis() - last_PID_loop);
+
 
   if(out > max)
   {
@@ -127,6 +128,8 @@ int regulator(int sp, int min, int max)
   {
     out = min;
   }
+
+  last_PID_loop = millis();
 
   return out;
 }

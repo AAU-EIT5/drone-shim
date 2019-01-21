@@ -44,6 +44,7 @@ int distance_set_point_base = 0;
 int grav_offset = 0;
 int regulator(int sp, int min, int max);
 void aux_handle();
+uint32_t last_PID_loop = 0;
 
 
 void debug_print(unsigned int send_period = 500);
