@@ -30,14 +30,11 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-<<<<<<< HEAD
-=======
   #if DEBUG_PIN
     pinMode(DEBUG_PIN, OUTPUT);
   #endif
   
 
->>>>>>> 7b1c0604501d637825b04240b96a4031cf54c97d
   //attachInterrupt(sensor_int[0], sensor0_data_ready, FALLING);
   //attachInterrupt(sensor_int[1], sensor1_data_ready, FALLING);
 
