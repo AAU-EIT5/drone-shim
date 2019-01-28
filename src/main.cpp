@@ -58,7 +58,7 @@ void aux_handle()
   int throttle = 0;
   int step = 100; // Step in mm
 
-  const int reg_min = -50, reg_max = 50;
+  const int reg_min = -100, reg_max = 100;
 
   if(aux >= 1400 && aux < 1700) // If switch is in the middle pos
   {
@@ -145,6 +145,7 @@ int regulator(int sp, int min, int max)
   int p_part = Kp * Err;
   int d_part = Kd * (Err - last_Err) / (millis() - last_PID_loop);
 
+  int out = p_part + d_part;
 
   if(out > max)
   {

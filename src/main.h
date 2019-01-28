@@ -18,9 +18,9 @@ void init_sensors();
 void handle_sensors();
 
 // Tuning constants
-const float Kp = 0.05;
+const float Kp = 0.1;
 const float Ki = 0;
-const float Kd = 0;
+const float Kd = 0.006;
 
 // Eeprom
 IntervalTimer throttle_sample_ticker;
